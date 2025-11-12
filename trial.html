@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Processed Images Viewer</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .image-container { display: flex; gap: 20px; flex-wrap: wrap; }
+        .image-container img { max-width: 200px; max-height: 200px; border: 1px solid #ccc; padding: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Processed Images</h1>
+    <input type="file" id="fileInput" multiple accept="image/*" />
+    <button onclick="uploadImages()">Upload & Process</button>
+
+    <h2>Result:</h2>
+    <div class="image-container" id="imageContainer"></div>
+
+    <script>
+        async function uploadImages() {
+            const files = document.getElementById('fileInput').files;
+            if (files.length !== 4) {
+                alert("Please select exactly 4 images!");
+                return;
+            }
+
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append("images", files[i]);
+            }
+
+            try {
+                const response = await fetch("http://127.0.0.1:8000/images/process", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE3NjI5NTA4MTB9.2pHG_CL1pbY5oFsShUvlV-5K_SYHJY3fYTXJP85Fh_c"
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+                const container = document.getElementById("imageContainer");
+                container.innerHTML = ""; // Clear previous
+
+                if (data.status === "ok") {
+                    container.innerHTML = "<p>All images are OK!</p>";
+                } else {
+                    data.images.forEach(img => {
+                        const imageElement = document.createElement("img");
+                        imageElement.src = `data:image/jpeg;base64,${img.content}`;
+                        container.appendChild(imageElement);
+                    });
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Error uploading images!");
+            }
+        }
+    </script>
+</body>
+</html>
