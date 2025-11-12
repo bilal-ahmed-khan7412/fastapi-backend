@@ -4,6 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Import all your routers
 from routes import user_routes, admin_routes, image_routes
+from database import Base, engine
+
+# -------------------- Create Tables --------------------
+# This will create all tables in your RDS/Postgres database if they don't exist
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="FastAPI MVC Auth & Image Processing",
