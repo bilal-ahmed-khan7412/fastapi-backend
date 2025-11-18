@@ -23,13 +23,16 @@ origins = [
     "*"  # optional, allow all origins
 ]
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*", "null"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # -------------------- Include Routers --------------------
 app.include_router(user_routes.router)

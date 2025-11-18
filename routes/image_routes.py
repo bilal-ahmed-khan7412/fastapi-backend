@@ -3,6 +3,8 @@ from typing import List
 from fastapi.responses import JSONResponse
 from utils.dependencies import get_current_user
 import base64
+from services.inference import run_batch_inference
+from services.image_utils import image_to_base64
 
 router = APIRouter(
     prefix="/images",
@@ -23,19 +25,34 @@ async def process_images(
     if len(images) != 4:
         raise HTTPException(status_code=400, detail="Exactly 4 images required")
 
-    # Hardcoded logic for now
-    is_ok_case = False  # change to True to just return "ok"
+     # Read all image bytes first (batch)
+    contents = [await img.read() for img in images]
 
-    if is_ok_case:
-        return {"status": "ok"}
-    else:
-        # Convert each image to Base64
-        processed_images_base64 = []
-        for img in images:
-            content = await img.read()
-            encoded = base64.b64encode(content).decode("utf-8")
-            processed_images_base64.append({
-                "filename": img.filename,
-                "content": encoded
-            })
-        return JSONResponse(content={"status": "notgood", "images": processed_images_base64})
+    # ---- BATCH YOLO INFERENCE ----
+    results = run_batch_inference(contents)  # returns list of 4 results
+
+    final_status = "ok"
+    output_images = []
+
+    # Iterate through results one by one (results[i] is for images[i])
+    for idx, result in enumerate(results):
+        original_name = images[idx].filename
+
+        # Render YOLO result with masks/boxes
+        rendered = result.plot()
+        rendered_base64 = image_to_base64(rendered)
+
+        output_images.append({
+            "filename": original_name,
+            "predictions": result.to_json(),
+            "visualized": rendered_base64
+        })
+
+        # --- Your decision logic: mark "notgood" if any defect is detected ---
+        if len(result.boxes) > 0 or (result.masks is not None):
+            final_status = "notgood"
+
+    return JSONResponse({
+        "status": final_status,
+        "images": output_images
+    })

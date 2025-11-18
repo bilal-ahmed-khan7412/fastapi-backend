@@ -34,7 +34,7 @@
                 const response = await fetch("http://127.0.0.1:8000/images/process", {
                     method: "POST",
                     headers: {
-                        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE3NjI5NTA4MTB9.2pHG_CL1pbY5oFsShUvlV-5K_SYHJY3fYTXJP85Fh_c"
+                        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE3NjMxMjU5NDl9.EUVSdZc7xsISFXNlChl-quFVO3SeEFf9YfSrj3naFb4"
                     },
                     body: formData
                 });
@@ -48,7 +48,8 @@
                 } else {
                     data.images.forEach(img => {
                         const imageElement = document.createElement("img");
-                        imageElement.src = `data:image/jpeg;base64,${img.content}`;
+                        imageElement.src = `data:image/jpeg;base64,${img.visualized}`;
+
                         container.appendChild(imageElement);
                     });
                 }
