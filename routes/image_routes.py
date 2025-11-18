@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Form
 from typing import List
 from fastapi.responses import JSONResponse
 from utils.dependencies import get_current_user
 import base64
 from services.inference import run_batch_inference
 from services.image_utils import image_to_base64
+from schemas.user_schema import ImageProcessRequest
 
 router = APIRouter(
     prefix="/images",
@@ -16,10 +17,12 @@ router = APIRouter(
 Sample request (multipart/form-data):
 
 - images: 4 image files  
+- model: string (model name)
 - Header: Authorization: Bearer <JWT_TOKEN>
 """)
 async def process_images(
     images: List[UploadFile] = File(..., description="Upload exactly 4 images"),
+    model: str = Form(..., description="Model name"),
     current_user=Depends(get_current_user)
 ):
     if len(images) != 4:
@@ -54,5 +57,6 @@ async def process_images(
 
     return JSONResponse({
         "status": final_status,
+        "model": model,  # Return the model name in response
         "images": output_images
     })
