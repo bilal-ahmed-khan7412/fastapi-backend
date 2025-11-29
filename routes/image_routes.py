@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Form
 from typing import List
 from fastapi.responses import JSONResponse
 from utils.dependencies import get_current_user
-import base64
 from services.inference import run_batch_inference
 from services.image_utils import image_to_base64
-from schemas.user_schema import ImageProcessRequest
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 router = APIRouter(
     prefix="/images",
@@ -28,35 +28,37 @@ async def process_images(
     if len(images) != 4:
         raise HTTPException(status_code=400, detail="Exactly 4 images required")
 
-     # Read all image bytes first (batch)
-    contents = [await img.read() for img in images]
+    # --- Read all image bytes concurrently ---
+    contents = await asyncio.gather(*[img.read() for img in images])
 
-    # ---- BATCH YOLO INFERENCE ----
+    # --- BATCH YOLO INFERENCE ---
     results = run_batch_inference(contents)  # returns list of 4 results
 
     final_status = "ok"
-    output_images = []
 
-    # Iterate through results one by one (results[i] is for images[i])
-    for idx, result in enumerate(results):
-        original_name = images[idx].filename
-
-        # Render YOLO result with masks/boxes
+    # --- Parallel rendering + base64 encoding ---
+    def render_and_encode(result):
         rendered = result.plot()
-        rendered_base64 = image_to_base64(rendered)
+        return image_to_base64(rendered)
+
+    with ThreadPoolExecutor() as executor:
+        output_images_base64 = list(executor.map(render_and_encode, results))
+
+    # --- Prepare final output and check for defects ---
+    output_images = []
+    for i, result in enumerate(results):
+        # Early defect detection
+        if len(result.boxes) == 0 or result.masks is None:
+            final_status = "notgood"
 
         output_images.append({
-            "filename": original_name,
+            "filename": images[i].filename,
             "predictions": result.to_json(),
-            "visualized": rendered_base64
+            "visualized": output_images_base64[i]
         })
-
-        # --- Your decision logic: mark "notgood" if any defect is detected ---
-        if len(result.boxes) > 0 or (result.masks is not None):
-            final_status = "notgood"
 
     return JSONResponse({
         "status": final_status,
-        "model": model,  # Return the model name in response
+        "model": model,
         "images": output_images
     })
